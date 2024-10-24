@@ -1,0 +1,38 @@
+[build-system]
+build-backend = "setuptools.build_meta"
+requires = ["setuptools>=65.5.0", "setuptools-scm", "wheel"]
+
+[project]
+authors = [
+  {name = "Miguel Cárcamo", email = "miguel.carcamo@manchester.ac.uk"}
+]
+classifiers = [
+  "Programming Language :: Python :: 3",
+  "Operating System :: OS Independent"
+]
+description = "Compressed Sensing Rotation Measure Reconstructor"
+dynamic = ["version", "dependencies"]
+license = {text = "GNU GPL"}
+maintainers = [
+  {name = "Miguel Cárcamo", email = "miguel.carcamo@manchester.ac.uk"}
+]
+name = "csromer"
+readme = "README.md"
+requires-python = ">=3.8"
+
+[project.urls]
+Source = "https://github.com/miguelcarcamov/csromer"
+
+[tool.setuptools]
+include-package-data = true
+
+[tool.setuptools.package-data]
+faraday_sky = ["*.fits", "*.hdf5"]
+
+[tool.setuptools.packages.find]
+include = ["csromer*"]
+namespaces = false
+where = ["src"]
+
+[tool.setuptools_scm]
+write_to = "src/csromer/_version.py"
