@@ -6,120 +6,159 @@ from mpl_toolkits.axes_grid1 import make_axes_locatable
 from scipy import asarray as ar
 from scipy import exp
 
-cmaps = [
-    "magma",
-    "inferno",
-    "inferno_r",
-    "plasma",
-    "viridis",
-    "bone",
-    "afmhot",
-    "gist_heat",
-    "CMRmap",
-    "gnuplot",
-    "Blues_r",
-    "Purples_r",
-    "ocean",
-    "hot",
-    "seismic_r",
-    "ocean_r",
-]
+class ColormapManager:
+    """
+    Clase para gestionar colormaps disponibles.
+    """
+    def __init__(self):
+        self.cmaps = [
+            "magma", "inferno", "inferno_r", "plasma", "viridis",
+            "bone", "afmhot", "gist_heat", "CMRmap", "gnuplot",
+            "Blues_r", "Purples_r", "ocean", "hot", "seismic_r", "ocean_r"
+        ]
+
+    def get_colormaps(self):
+        return self.cmaps
 
 
-def config_axes(data, header, units="degrees"):
-    u_factor = 1.0
-    if units == "arcmin":
-        u_factor = 60.0
-    elif units == "arcsec":
-        u_factor = 3600.0
-    elif units == "rad":
-        u_factor = np.pi / 180.0
-    x = data.shape[0]
-    y = data.shape[1]
-    dx = header["cdelt1"] * u_factor
-    dy = header["cdelt2"] * u_factor
-    x = ar(range(x)) * dx
-    y = ar(range(y)) * dy
-    x1 = (header["crpix1"] - 1.0) * np.abs(dx)
-    y1 = (header["crpix2"] - 1.0) * dy
-    x = np.arange(x1, -x1 - dx, -dx)
-    y = np.arange(-y1, y1 + dy, dy)
-    return [x, y, x1, y1]
+class DataConfig:
+    """
+    Clase para configurar los ejes de los datos con el encabezado.
+    """
+    def __init__(self, data, header, units="degrees"):
+        self.data = data
+        self.header = header
+        self.units = units
+        self.u_factor = self._set_units_factor()
+
+    def _set_units_factor(self):
+        """
+        Configura el factor de conversión basado en las unidades proporcionadas.
+        """
+        if self.units == "arcmin":
+            return 60.0
+        elif self.units == "arcsec":
+            return 3600.0
+        elif self.units == "rad":
+            return np.pi / 180.0
+        return 1.0
+
+    def config_axes(self):
+        """
+        Configura los ejes x e y basados en los datos y el encabezado.
+        """
+        x = self.data.shape[0]
+        y = self.data.shape[1]
+        dx = self.header["cdelt1"] * self.u_factor
+        dy = self.header["cdelt2"] * self.u_factor
+        x = ar(range(x)) * dx
+        y = ar(range(y)) * dy
+        x1 = (self.header["crpix1"] - 1.0) * np.abs(dx)
+        y1 = (self.header["crpix2"] - 1.0) * dy
+        x = np.arange(x1, -x1 - dx, -dx)
+        y = np.arange(-y1, y1 + dy, dy)
+        return [x, y, x1, y1]
 
 
-def colorbar(mappable, title="", location="right"):
-    last_axes = plt.gca()
-    ax = mappable.axes
-    fig = ax.figure
-    divider = make_axes_locatable(ax)
-    cax = divider.append_axes(location, size="5%", pad=0.05)
-    cbar = fig.colorbar(mappable, cax=cax, extend="both")
-    cbar.set_label(title)
-    plt.sca(last_axes)
-    return cbar
+class ColorBarManager:
+    """
+    Clase para manejar la creación y configuración de barras de color.
+    """
+    def __init__(self, mappable, title="", location="right"):
+        self.mappable = mappable
+        self.title = title
+        self.location = location
+
+    def create_colorbar(self):
+        """
+        Crea una barra de color para la imagen proporcionada.
+        """
+        last_axes = plt.gca()
+        ax = self.mappable.axes
+        fig = ax.figure
+        divider = make_axes_locatable(ax)
+        cax = divider.append_axes(self.location, size="5%", pad=0.05)
+        cbar = fig.colorbar(self.mappable, cax=cax, extend="both")
+        cbar.set_label(self.title)
+        plt.sca(last_axes)
+        return cbar
 
 
-def create_animation(
-    header,
-    cube_axis=np.array([]),
-    cube=np.array([]),
-    xlabel="",
-    ylabel="",
-    cblabel="",
-    title="",
-    title_pad=0.0,
-    vmin=None,
-    vmax=None,
-    output_video="dynamic_images.mp4",
-    fps=30,
-    interval=50,
-    repeat=False,
-):
-    ims = []
-    num_ims = len(cube)
-    if num_ims != 0:
-        if vmin is None and vmax is None:
-            vmax = np.amax(np.amax(cube, axis=0))
-            vmin = np.amin(np.amin(cube, axis=0))
+class AnimationCreator:
+    """
+    Clase para crear animaciones con los datos proporcionados.
+    """
+    def __init__(self, header, cube, cube_axis, xlabel="", ylabel="", cblabel="", title="", cmap="Spectral", title_pad=0.0, vmin=None, vmax=None):
+        self.header = header
+        self.cube = cube
+        self.cube_axis = cube_axis
+        self.xlabel = xlabel
+        self.ylabel = ylabel
+        self.cblabel = cblabel
+        self.title = title
+        self.cmap = cmap  # El colormap ahora es un argumento configurable.
+        self.title_pad = title_pad
+        self.vmin = vmin
+        self.vmax = vmax
 
-        fig = plt.figure()
-        ax = plt.subplot(111)
-        axes = config_axes(cube[0], header)
-        cv0 = cube[0]
+        if self.vmin is None or self.vmax is None:
+            self.vmax = np.amax(np.amax(cube, axis=0))
+            self.vmin = np.amin(np.amin(cube, axis=0))
+
+    def create_animation(self, output_video="dynamic_images.mp4", fps=30, interval=50, repeat=False):
+        """
+        Crea una animación y la guarda como un archivo de video.
+        """
+        fig, ax = plt.subplots()
+        data_config = DataConfig(self.cube[0], self.header)
+        axes = data_config.config_axes()
+
+        cv0 = self.cube[0]
         im = ax.imshow(
             cv0,
             origin="lower",
             aspect="equal",
-            cmap="Spectral",
+            cmap=self.cmap,  # Usando el colormap seleccionado
             extent=[axes[2], -axes[2], -axes[3], axes[3]],
         )
-        tx = ax.set_title(title, pad=title_pad)
-        # time_text = ax.text(.5, .5, '', fontsize=15)
-        ax.set_xlabel(xlabel)
-        ax.set_ylabel(ylabel)
-        tick_locator = ticker.MaxNLocator(nbins=3)
-        cb = colorbar(im, cblabel)
-        cb.locator = tick_locator
+        ax.set_title(self.title, pad=self.title_pad)
+        ax.set_xlabel(self.xlabel)
+        ax.set_ylabel(self.ylabel)
+
+        # Gestión de la barra de color
+        colorbar_mgr = ColorBarManager(im, self.cblabel)
+        cb = colorbar_mgr.create_colorbar()
+        cb.locator = ticker.MaxNLocator(nbins=3)
         cb.update_ticks()
 
         def animate(i):
-            arr = cube[i]
-            phi_i = cube_axis[i]
+            arr = self.cube[i]
+            phi_i = self.cube_axis[i]
             # vmax     = np.max(arr)
             # vmin     = np.min(arr)
-            tx.set_text("Faraday Depth Spectrum at {0:.4f} rad/m^2".format(phi_i))
+            ax.set_title(f"Faraday Depth Spectrum at {phi_i:.4f} rad/m^2")
             # time_text.set_text("Phi: {0}".format(phi_i))
             im.set_data(arr)
-            im.set_clim(vmin, vmax)
+            im.set_clim(self.vmin, self.vmax)
 
         ani = animation.FuncAnimation(
             fig,
             animate,
-            frames=num_ims,
-            interval=250,
+            frames=len(self.cube),
+            interval=interval,
             repeat=repeat,
             blit=False,
             repeat_delay=1000,
         )
         ani.save(output_video)
-        # plt.show()
+
+colormap_manager = ColormapManager()
+header = {"cdelt1": 0.5, "cdelt2": 0.5, "crpix1": 50, "crpix2": 50}
+cube = np.random.rand(100, 50, 50)
+cube_axis = np.linspace(-10, 10, 100)
+
+animation_creator = AnimationCreator(
+    header, cube, cube_axis, "X-axis", "Y-axis", "Color Bar", 
+    "Sample Animation", cmap=colormap_manager.get_colormaps()[3]  # Usando "plasma"
+)
+animation_creator.create_animation()
